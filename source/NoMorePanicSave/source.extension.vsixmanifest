@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Id="NoMorePanicSave.Philipp Dolder.862684fa-62bb-4fa7-bd83-3fdc294b5a3f" Version="1.0" Language="en-US" Publisher="Philipp Dolder" />
+    <Identity Id="NoMorePanicSave.Philipp Dolder.862684fa-62bb-4fa7-bd83-3fdc294b5a3f" Version="1.1" Language="en-US" Publisher="Philipp Dolder" />
     <DisplayName>NoMorePanicSave2017</DisplayName>
-    <Description xml:space="preserve">Automatically saves all files and projects when leaving the current visual studio instance</Description>
+    <Description xml:space="preserve">Automatically saves all files and projects when tab-switching away from the current visual studio instance</Description>
     <MoreInfo>https://github.com/philippdolder/NoMorePanicSave2017</MoreInfo>
     <License>LICENSE</License>
     <Tags>save,always,auto,leave,git</Tags>

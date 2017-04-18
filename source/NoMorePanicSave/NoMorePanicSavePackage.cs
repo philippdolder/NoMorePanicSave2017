@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using EnvDTE;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
-using PhilippDolder.NoMorePanicSave;
+using Microsoft.VisualStudio.Shell.Interop;
 using Process = System.Diagnostics.Process;
 
 namespace NoMorePanicSave
@@ -39,7 +39,7 @@ namespace NoMorePanicSave
         private IntPtr currentInstanceFocusedHookHandle;
         private SolutionEvents solutionEvents;
         private bool visualStudioClosing;
-        private bool enabled;
+        private bool hasFocus;
 
         /// <summary>
         /// NoMorePanicSavePackage GUID string.
@@ -52,58 +52,71 @@ namespace NoMorePanicSave
         /// </summary>
         protected override void Initialize()
         {
+            this.GetLogger().LogInformation(this.GetPackageName(), "Initializing.");
             base.Initialize();
-
-            var visualStudioProcess = Process.GetCurrentProcess();
-            this.otherApplicationFocusedHandlerReference = this.HandleOtherApplicationFocused;
-            this.currentInstanceFocusedHandlerReference = this.HandleCurrentInstanceFocused;
-            this.otherApplicationFocusedHookHandle = WindowsEventHooker.SetWinEventHook(3, 3, IntPtr.Zero, this.otherApplicationFocusedHandlerReference, 0, 0, SetWinEventHookFlags.WINEVENT_OUTOFCONTEXT | SetWinEventHookFlags.WINEVENT_SKIPOWNPROCESS);
-            this.currentInstanceFocusedHookHandle = WindowsEventHooker.SetWinEventHook(3, 3, IntPtr.Zero, this.currentInstanceFocusedHandlerReference, (uint)visualStudioProcess.Id, 0, SetWinEventHookFlags.WINEVENT_OUTOFCONTEXT);
 
             try
             {
+                var visualStudioProcess = Process.GetCurrentProcess();
+                this.otherApplicationFocusedHandlerReference = this.HandleOtherApplicationFocused;
+                this.currentInstanceFocusedHandlerReference = this.HandleCurrentInstanceFocused;
+                this.otherApplicationFocusedHookHandle = WindowsEventHooker.SetWinEventHook(3, 3, IntPtr.Zero, this.otherApplicationFocusedHandlerReference, 0, 0, SetWinEventHookFlags.WINEVENT_OUTOFCONTEXT | SetWinEventHookFlags.WINEVENT_SKIPOWNPROCESS);
+                this.currentInstanceFocusedHookHandle = WindowsEventHooker.SetWinEventHook(3, 3, IntPtr.Zero, this.currentInstanceFocusedHandlerReference, (uint)visualStudioProcess.Id, 0, SetWinEventHookFlags.WINEVENT_OUTOFCONTEXT);
+
                 var dte = (DTE)this.GetService(typeof(DTE));
 
                 this.solutionEvents = dte.Events.SolutionEvents;
                 this.solutionEvents.BeforeClosing += this.HandleBeforeClosingSolution;
+
+                this.GetLogger().LogInformation(this.GetPackageName(), "Initialized.");
             }
-            catch (Exception)
+            catch (Exception exception)
             {
-                // ignore
+                this.GetLogger().LogError(this.GetPackageName(), "Exception during initialization", exception);
             }
         }
 
+        private string GetPackageName() => this.ToString();
+
         protected override void Dispose(bool disposing)
         {
+            this.GetLogger().LogInformation(this.GetPackageName(), "Disposing.");
+
             WindowsEventHooker.UnhookWinEvent(this.currentInstanceFocusedHookHandle);
             this.currentInstanceFocusedHandlerReference = null;
 
             WindowsEventHooker.UnhookWinEvent(this.otherApplicationFocusedHookHandle);
             this.otherApplicationFocusedHandlerReference = null;
 
+            this.GetLogger().LogInformation(this.GetPackageName(), "Disposed.");
+
             base.Dispose(disposing);
         }
 
         private void HandleBeforeClosingSolution()
         {
+            this.GetLogger().LogInformation(this.GetPackageName(), "Closing solution.");
             this.visualStudioClosing = true;
         }
 
         private void HandleCurrentInstanceFocused(IntPtr hWinEventHook, uint eventType,
                 IntPtr hWnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
         {
-            this.enabled = true;
+            this.GetLogger().LogInformation(this.GetPackageName(), "VS focused. HasFocus = true.");
+            this.hasFocus = true;
         }
 
         private void HandleOtherApplicationFocused(
                 IntPtr hWinEventHook, uint eventType,
                 IntPtr hWnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
         {
-            if (this.enabled && !this.visualStudioClosing)
+            this.GetLogger().LogInformation(this.GetPackageName(), "Other application focused.");
+            if (this.hasFocus && !this.visualStudioClosing)
             {
                 this.SaveAll();
 
-                this.enabled = false;
+                this.hasFocus = false;
+                this.GetLogger().LogInformation(this.GetPackageName(), "Saved. HasFocus = false.");
             }
         }
 
@@ -111,15 +124,19 @@ namespace NoMorePanicSave
         {
             try
             {
-                DTE dte = (DTE)this.GetService(typeof(DTE));
+                var dte = (DTE)this.GetService(typeof(DTE));
 
                 dte.ExecuteCommand("File.SaveAll");
-
             }
-            catch (Exception)
+            catch (Exception exception)
             {
-                // ignore
+                this.GetLogger().LogError(this.GetPackageName(), "Exception while saving", exception);
             }
+        }
+
+        private IVsActivityLog GetLogger()
+        {
+            return this.GetService(typeof(SVsActivityLog)) as IVsActivityLog ?? new NullLogger();
         }
     }
 }

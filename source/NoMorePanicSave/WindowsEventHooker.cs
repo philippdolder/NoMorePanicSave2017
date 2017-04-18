@@ -1,8 +1,8 @@
-﻿namespace PhilippDolder.NoMorePanicSave
-{
-    using System;
-    using System.Runtime.InteropServices;
+﻿using System;
+using System.Runtime.InteropServices;
 
+namespace NoMorePanicSave
+{
     public class WindowsEventHooker
     {
         public delegate void WinEventDelegate(
