@@ -38,7 +38,7 @@ namespace NoMorePanicSave
         private IntPtr otherApplicationFocusedHookHandle;
         private IntPtr currentInstanceFocusedHookHandle;
         private SolutionEvents solutionEvents;
-        private bool visualStudioClosing;
+        private bool solutionOpen;
         private bool hasFocus;
 
         /// <summary>
@@ -95,8 +95,9 @@ namespace NoMorePanicSave
 
         private void HandleBeforeClosingSolution()
         {
-            this.GetLogger().LogInformation(this.GetPackageName(), "Closing solution.");
-            this.visualStudioClosing = true;
+            this.GetLogger().LogInformation(this.GetPackageName(), "Closing solution. SolutionOpen = false");
+            this.solutionOpen = false;
+        }
         }
 
         private void HandleCurrentInstanceFocused(IntPtr hWinEventHook, uint eventType,
@@ -111,7 +112,7 @@ namespace NoMorePanicSave
                 IntPtr hWnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
         {
             this.GetLogger().LogInformation(this.GetPackageName(), "Other application focused.");
-            if (this.hasFocus && !this.visualStudioClosing)
+            if (this.hasFocus && this.solutionOpen)
             {
                 this.SaveAll();
 
