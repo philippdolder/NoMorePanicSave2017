@@ -67,6 +67,7 @@ namespace NoMorePanicSave
 
                 this.solutionEvents = dte.Events.SolutionEvents;
                 this.solutionEvents.BeforeClosing += this.HandleBeforeClosingSolution;
+                this.solutionEvents.Opened += this.HandleSolutionOpened;
 
                 this.GetLogger().LogInformation(this.GetPackageName(), "Initialized.");
             }
@@ -98,6 +99,11 @@ namespace NoMorePanicSave
             this.GetLogger().LogInformation(this.GetPackageName(), "Closing solution. SolutionOpen = false");
             this.solutionOpen = false;
         }
+
+        private void HandleSolutionOpened()
+        {
+            this.GetLogger().LogInformation(this.GetPackageName(), "Opened solution. SolutionOpen = true");
+            this.solutionOpen = true;
         }
 
         private void HandleCurrentInstanceFocused(IntPtr hWinEventHook, uint eventType,
