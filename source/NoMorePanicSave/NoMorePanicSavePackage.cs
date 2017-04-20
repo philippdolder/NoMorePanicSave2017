@@ -38,7 +38,7 @@ namespace NoMorePanicSave
         private IntPtr otherApplicationFocusedHookHandle;
         private IntPtr currentInstanceFocusedHookHandle;
         private SolutionEvents solutionEvents;
-        private bool solutionOpen;
+        private bool solutionOpen = true;
         private bool hasFocus;
 
         /// <summary>
