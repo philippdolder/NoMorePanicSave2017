@@ -26,12 +26,12 @@ namespace NoMorePanicSave
     /// To get loaded into VS, the package must be referred by &lt;Asset Type="Microsoft.VisualStudio.VsPackage" ...&gt; in .vsixmanifest file.
     /// </para>
     /// </remarks>
-    [PackageRegistration(UseManagedResourcesOnly = true)]
+    [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading =true)]
     [InstalledProductRegistration("#110", "#112", "1.0", IconResourceID = 400)] // Info on this package for Help/About
     [Guid(NoMorePanicSavePackage.PackageGuidString)]
     [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "pkgdef, VS and vsixmanifest are valid VS terms")]
-    [ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExistsAndFullyLoaded_string)]
-    public sealed class NoMorePanicSavePackage : Package
+    [ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExistsAndFullyLoaded_string, PackageAutoLoadFlags.BackgroundLoad)]
+    public sealed class NoMorePanicSavePackage : AsyncPackage
     {
         private WindowsEventHooker.WinEventDelegate otherApplicationFocusedHandlerReference;
         private WindowsEventHooker.WinEventDelegate currentInstanceFocusedHandlerReference;
@@ -50,11 +50,10 @@ namespace NoMorePanicSave
         /// Initialization of the package; this method is called right after the package is sited, so this is the place
         /// where you can put all the initialization code that rely on services provided by VisualStudio.
         /// </summary>
-        protected override void Initialize()
+        protected override async System.Threading.Tasks.Task InitializeAsync(System.Threading.CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
         {
             this.GetLogger().LogInformation(this.GetPackageName(), "Initializing.");
-            base.Initialize();
-
+            await base.InitializeAsync(cancellationToken, progress);
             try
             {
                 var visualStudioProcess = Process.GetCurrentProcess();
