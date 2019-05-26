@@ -5,7 +5,6 @@ using EnvDTE;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
-using Process = System.Diagnostics.Process;
 
 namespace NoMorePanicSave
 {
@@ -26,20 +25,15 @@ namespace NoMorePanicSave
     /// To get loaded into VS, the package must be referred by &lt;Asset Type="Microsoft.VisualStudio.VsPackage" ...&gt; in .vsixmanifest file.
     /// </para>
     /// </remarks>
-    [PackageRegistration(UseManagedResourcesOnly = true)]
+    [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
     [InstalledProductRegistration("#110", "#112", "1.2", IconResourceID = 400)] // Info on this package for Help/About
     [Guid(NoMorePanicSavePackage.PackageGuidString)]
     [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "pkgdef, VS and vsixmanifest are valid VS terms")]
-    [ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExistsAndFullyLoaded_string)]
-    public sealed class NoMorePanicSavePackage : Package
+    [ProvideAutoLoad(VSConstants.UICONTEXT.SolutionOpening_string, PackageAutoLoadFlags.BackgroundLoad)]
+    public sealed class NoMorePanicSavePackage : AsyncPackage
     {
-        private WindowsEventHooker.WinEventDelegate otherApplicationFocusedHandlerReference;
-        private WindowsEventHooker.WinEventDelegate currentInstanceFocusedHandlerReference;
-        private IntPtr otherApplicationFocusedHookHandle;
-        private IntPtr currentInstanceFocusedHookHandle;
         private SolutionEvents solutionEvents;
         private bool solutionOpen = true;
-        private bool hasFocus;
 
         /// <summary>
         /// NoMorePanicSavePackage GUID string.
@@ -50,24 +44,20 @@ namespace NoMorePanicSave
         /// Initialization of the package; this method is called right after the package is sited, so this is the place
         /// where you can put all the initialization code that rely on services provided by VisualStudio.
         /// </summary>
-        protected override void Initialize()
+        protected override async System.Threading.Tasks.Task InitializeAsync(System.Threading.CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
         {
             this.GetLogger().LogInformation(this.GetPackageName(), "Initializing.");
-            base.Initialize();
-
+            await base.InitializeAsync(cancellationToken, progress);
             try
             {
-                var visualStudioProcess = Process.GetCurrentProcess();
-                this.otherApplicationFocusedHandlerReference = this.HandleOtherApplicationFocused;
-                this.currentInstanceFocusedHandlerReference = this.HandleCurrentInstanceFocused;
-                this.otherApplicationFocusedHookHandle = WindowsEventHooker.SetWinEventHook(3, 3, IntPtr.Zero, this.otherApplicationFocusedHandlerReference, 0, 0, SetWinEventHookFlags.WINEVENT_OUTOFCONTEXT | SetWinEventHookFlags.WINEVENT_SKIPOWNPROCESS);
-                this.currentInstanceFocusedHookHandle = WindowsEventHooker.SetWinEventHook(3, 3, IntPtr.Zero, this.currentInstanceFocusedHandlerReference, (uint)visualStudioProcess.Id, 0, SetWinEventHookFlags.WINEVENT_OUTOFCONTEXT);
+                System.Windows.Application.Current.Deactivated += this.HandleCurrentApplicationDeactivated;
 
                 var dte = (DTE)this.GetService(typeof(DTE));
 
                 this.solutionEvents = dte.Events.SolutionEvents;
                 this.solutionEvents.BeforeClosing += this.HandleBeforeClosingSolution;
                 this.solutionEvents.Opened += this.HandleSolutionOpened;
+                this.solutionOpen = dte.Solution != null;
 
                 this.GetLogger().LogInformation(this.GetPackageName(), "Initialized.");
             }
@@ -83,11 +73,7 @@ namespace NoMorePanicSave
         {
             this.GetLogger().LogInformation(this.GetPackageName(), "Disposing.");
 
-            WindowsEventHooker.UnhookWinEvent(this.currentInstanceFocusedHookHandle);
-            this.currentInstanceFocusedHandlerReference = null;
-
-            WindowsEventHooker.UnhookWinEvent(this.otherApplicationFocusedHookHandle);
-            this.otherApplicationFocusedHandlerReference = null;
+            System.Windows.Application.Current.Deactivated -= this.HandleCurrentApplicationDeactivated;
 
             this.GetLogger().LogInformation(this.GetPackageName(), "Disposed.");
 
@@ -106,23 +92,12 @@ namespace NoMorePanicSave
             this.solutionOpen = true;
         }
 
-        private void HandleCurrentInstanceFocused(IntPtr hWinEventHook, uint eventType,
-                IntPtr hWnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
+        private void HandleCurrentApplicationDeactivated(object sender, EventArgs e)
         {
-            this.GetLogger().LogInformation(this.GetPackageName(), "VS focused. HasFocus = true.");
-            this.hasFocus = true;
-        }
-
-        private void HandleOtherApplicationFocused(
-                IntPtr hWinEventHook, uint eventType,
-                IntPtr hWnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
-        {
-            this.GetLogger().LogInformation(this.GetPackageName(), "Other application focused.");
-            if (this.hasFocus && this.solutionOpen)
+            this.GetLogger().LogInformation(this.GetPackageName(), "Current application deactivated.");
+            if (this.solutionOpen)
             {
                 this.SaveAll();
-
-                this.hasFocus = false;
                 this.GetLogger().LogInformation(this.GetPackageName(), "Saved. HasFocus = false.");
             }
         }
